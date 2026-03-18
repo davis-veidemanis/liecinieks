@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Liecinieks</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ws: http://localhost:* http://127.0.0.1:*" />
+  </head>
+  <body>
+    <script>
+      (function () {
+        var pref = localStorage.getItem('liecinieks-theme');
+        var resolved =
+          pref === 'light' || pref === 'dark'
+            ? pref
+            : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', resolved);
+      })();
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/renderer.tsx"></script>
+  </body>
+</html>
