@@ -1,18 +1,29 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+import { PlaywrightHost } from './main-modules/playwright-host';
+import { ScenarioStore } from './main-modules/scenarios';
+import { exportPlaywright } from './main-modules/codegen';
+import { readLabelsCsv } from './main-modules/labels';
+import { IPC } from './ipc-channels';
+import type { Scenario, ViewportSize } from './types';
 
 if (started) {
   app.quit();
 }
 
 let mainWindow: BrowserWindow | null = null;
+let host: PlaywrightHost | null = null;
+let scenarioStore: ScenarioStore | null = null;
+let weightsPath: string | null = null;
+let labelsCsvPath: string | null = null;
+let currentLabels: string[] = [];
 
 const createWindow = (): void => {
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 760,
-    title: 'Liecinieks',
+    title: 'Liecinieks — Visual UI Testing',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -27,9 +38,24 @@ const createWindow = (): void => {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
+
+  if (process.env.LIECINIEKS_DEVTOOLS) {
+    mainWindow.webContents.openDevTools();
+  }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    void host?.close();
+    host = null;
+  });
+
+  scenarioStore = new ScenarioStore(path.join(app.getPath('userData'), 'scenarios'));
 };
 
-app.on('ready', createWindow);
+app.on('ready', () => {
+  createWindow();
+  registerIpc();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -42,3 +68,100 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+app.on('before-quit', () => {
+  void host?.close();
+});
+
+function ensureMainWindow(): BrowserWindow {
+  if (!mainWindow) throw new Error('Main window not initialised');
+  return mainWindow;
+}
+
+function registerIpc(): void {
+  ipcMain.handle(IPC.LOAD_MODEL, async () => {
+    const win = ensureMainWindow();
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Choose YOLO weights file',
+      properties: ['openFile'],
+      filters: [
+        { name: 'YOLO weights (.pt)', extensions: ['pt'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    const weights = result.filePaths[0];
+    const csvResult = await dialog.showOpenDialog(win, {
+      title: 'Choose labels CSV file (class_id,class_name)',
+      properties: ['openFile'],
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+    });
+    if (csvResult.canceled || csvResult.filePaths.length === 0) return null;
+    const csv = csvResult.filePaths[0];
+    const labels = await readLabelsCsv(csv);
+    weightsPath = weights;
+    labelsCsvPath = csv;
+    currentLabels = labels.map((l) => l.name);
+    return { weightsPath, labelsCsvPath, labels };
+  });
+
+  ipcMain.handle(IPC.LIST_SCENARIOS, async () => {
+    if (!scenarioStore) return [];
+    return scenarioStore.list();
+  });
+
+  ipcMain.handle(IPC.LOAD_SCENARIO, async (_e, file: string) => {
+    if (!scenarioStore) return null;
+    return scenarioStore.load(file);
+  });
+
+  ipcMain.handle(IPC.SAVE_SCENARIO, async (_e, scenario: Scenario) => {
+    if (!scenarioStore) return null;
+    return scenarioStore.save(scenario);
+  });
+
+  ipcMain.handle(IPC.EXPORT_PLAYWRIGHT, async (_e, scenario: Scenario) => {
+    const win = ensureMainWindow();
+    if (!weightsPath || !labelsCsvPath) {
+      throw new Error('Load a model and labels CSV first.');
+    }
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Choose folder to write Playwright test',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    const outDir = result.filePaths[0];
+    return exportPlaywright(scenario, outDir, weightsPath, labelsCsvPath);
+  });
+
+  ipcMain.handle(IPC.OPEN_TARGET, async (_e, payload: { url: string; viewport: ViewportSize; deviceScaleFactor: number }) => {
+    if (host) {
+      try { await host.close(); } catch {  }
+      host = null;
+    }
+    const win = ensureMainWindow();
+    host = new PlaywrightHost(win);
+    await host.open(payload.url, payload.viewport, payload.deviceScaleFactor, currentLabels);
+    return { ok: true };
+  });
+
+  ipcMain.handle(IPC.CLOSE_TARGET, async () => {
+    if (host) {
+      await host.close();
+      host = null;
+    }
+    return { ok: true };
+  });
+
+  ipcMain.handle(
+    IPC.SET_RECORDING_MODE,
+    async (
+      _e,
+      payload: { activeLabel: string | null; verifyLocation: boolean; negate: boolean },
+    ) => {
+      if (!host) return { ok: false, reason: 'No browser open' };
+      await host.setActiveLabel(payload.activeLabel, payload.verifyLocation, payload.negate, currentLabels);
+      return { ok: true };
+    },
+  );
+}
