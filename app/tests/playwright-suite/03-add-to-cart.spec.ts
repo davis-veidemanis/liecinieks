@@ -1,0 +1,48 @@
+
+import { test } from '@playwright/test';
+import { yoloAssertVisible } from './liecinieks-runtime';
+import { WEIGHTS, LABELS, IOU_THRESHOLD } from './liecinieks-config';
+
+test('add to cart — confirmation toast + populated cart page', async ({ page }, testInfo) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.locator('[data-test^="product-"][data-test*="01"]').first().waitFor({ state: 'visible' });
+  await page.locator('[data-test^="product-"][data-test*="01"]').first().click();
+
+  await page.locator('[data-test="add-to-cart"]').waitFor({ state: 'visible' });
+  await page.locator('[data-test="add-to-cart"]').click();
+
+  await yoloAssertVisible(page, testInfo, {
+    weights: WEIGHTS,
+    labels: LABELS,
+    label: 'pdp_cart_confirmation',
+    verifyLocation: false,
+    expectedBbox: { x: 0, y: 0, w: 0, h: 0 },
+    iouThreshold: IOU_THRESHOLD,
+    negate: false,
+  });
+
+  await page.locator('[data-test="nav-cart"]').click();
+  await page.locator('[data-test="proceed-1"]').waitFor({ state: 'visible' });
+
+  const cartRegions = [
+    'cart_stages',
+    'cart_item',
+    'cart_quantity',
+    'cart_price',
+    'cart_total',
+    'cart_proceed_to_checkout_btn',
+    'cart_continue_shopping_btn',
+  ];
+
+  for (const label of cartRegions) {
+    await yoloAssertVisible(page, testInfo, {
+      weights: WEIGHTS,
+      labels: LABELS,
+      label,
+      verifyLocation: false,
+      expectedBbox: { x: 0, y: 0, w: 0, h: 0 },
+      iouThreshold: IOU_THRESHOLD,
+      negate: false,
+    });
+  }
+});
