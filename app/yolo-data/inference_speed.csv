@@ -1,0 +1,9 @@
+model,ms_per_image
+YOLOv5n,72.1
+YOLOv5s,75.0
+YOLOv8n,81.8
+YOLOv8s,76.7
+YOLOv11n,77.6
+YOLOv11s,79.3
+YOLOv12n,86.1
+YOLOv12s,85.6

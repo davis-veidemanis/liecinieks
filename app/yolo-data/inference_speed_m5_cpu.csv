@@ -1,0 +1,9 @@
+model,ms_per_image_m5_cpu
+YOLOv5n,41.2
+YOLOv5s,53.0
+YOLOv8n,38.8
+YOLOv8s,54.2
+YOLOv11n,41.4
+YOLOv11s,53.6
+YOLOv12n,65.1
+YOLOv12s,100.4
