@@ -1,3 +1,4 @@
+
 import { Page, TestInfo, expect } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -27,11 +28,12 @@ export async function yoloAssertVisible(
   opts: AssertionOptions,
 ): Promise<void> {
   const seq =
-    testInfo.attachments.filter((a) => a.name.startsWith('liecinieks-screenshot')).length + 1;
+    testInfo.attachments.filter((a) => a.name.startsWith('liecinieks-yolo-view')).length + 1;
   const screenshot = testInfo.outputPath(`liecinieks-screenshot-${seq}.png`);
+  const annotated = testInfo.outputPath(`liecinieks-yolo-view-${seq}.png`);
   await page.screenshot({ path: screenshot, fullPage: false });
 
-  const detections = runInference(opts.weights, screenshot);
+  const detections = runInference(opts.weights, screenshot, annotated);
   const matches = detections.filter((d) => d.className === opts.label);
   const matchAtLocation = opts.verifyLocation
     ? matches.filter((d) => iou(d.bbox, opts.expectedBbox) >= opts.iouThreshold)
@@ -41,12 +43,22 @@ export async function yoloAssertVisible(
   const expectedTrue = !opts.negate;
   const passed = asserted === expectedTrue;
 
+  await testInfo.attach(`liecinieks-yolo-view-${seq}-${opts.label}-${passed ? 'pass' : 'FAIL'}`, {
+    path: annotated,
+    contentType: 'image/png',
+  });
+
+  logAssertion(opts, detections, matches, passed);
+
   if (passed) {
     await fs.promises.unlink(screenshot).catch(() => undefined);
     return;
   }
 
-  await testInfo.attach(`liecinieks-screenshot-${seq}`, { path: screenshot, contentType: 'image/png' });
+  await testInfo.attach(`liecinieks-screenshot-${seq}`, {
+    path: screenshot,
+    contentType: 'image/png',
+  });
   const detectionsPath = testInfo.outputPath(`liecinieks-detections-${seq}.json`);
   await fs.promises.writeFile(
     detectionsPath,
@@ -64,13 +76,37 @@ export async function yoloAssertVisible(
   ).toBe(true);
 }
 
-function runInference(weights: string, screenshot: string): Detection[] {
+function logAssertion(
+  opts: AssertionOptions,
+  detections: Detection[],
+  matches: Detection[],
+  passed: boolean,
+): void {
+  const verdict = passed ? '✓' : '✗';
+  const mode = opts.negate ? 'NOT visible' : 'visible';
+  const matchConf = matches.length
+    ? ` (${matches.map((m) => m.confidence.toFixed(2)).join(', ')})`
+    : '';
+  const others = detections
+    .filter((d) => d.className !== opts.label)
+    .slice(0, 6)
+    .map((d) => `${d.className}:${d.confidence.toFixed(2)}`)
+    .join(' ');
+  console.log(
+    `  ${verdict} assert ${opts.label} ${mode} — ` +
+      `model saw ${detections.length} regions (${matches.length}× ${opts.label}${matchConf}) ` +
+      `others: ${others}${detections.length > 7 ? ' …' : ''}`,
+  );
+}
+
+function runInference(weights: string, screenshot: string, annotated: string): Detection[] {
   const scriptPath = path.join(__dirname, 'liecinieks-inference.py');
   const python = process.env.LIECINIEKS_PYTHON || 'python3';
-  const result = spawnSync(python, [scriptPath, '--weights', weights, '--image', screenshot], {
-    encoding: 'utf-8',
-    timeout: 60_000,
-  });
+  const result = spawnSync(
+    python,
+    [scriptPath, '--weights', weights, '--image', screenshot, '--annotate', annotated],
+    { encoding: 'utf-8', timeout: 60_000 },
+  );
   if (result.status !== 0) {
     throw new Error('YOLO inference failed: ' + (result.stderr || 'unknown error'));
   }
