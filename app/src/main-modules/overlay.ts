@@ -752,6 +752,20 @@ export const OVERLAY_SCRIPT = String.raw`
     }
   }
 
+  document.addEventListener('mousedown', function (ev) {
+    if (!ev.shiftKey || ev.button !== 0) return;
+    if (!window.__liecinieksState.recording) return;
+    if (isInOurUi(ev.target)) return;
+    ev.preventDefault();
+  }, { capture: true });
+
+  document.addEventListener('selectstart', function (ev) {
+    if (!shiftHeld) return;
+    if (!window.__liecinieksState.recording) return;
+    if (isInOurUi(ev.target)) return;
+    ev.preventDefault();
+  }, { capture: true });
+
   document.addEventListener('click', handleLeftClick, { capture: true });
   document.addEventListener('contextmenu', handleRightClick, { capture: true });
 
