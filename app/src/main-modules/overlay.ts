@@ -111,14 +111,14 @@ export const OVERLAY_SCRIPT = String.raw`
   document.addEventListener('keyup', function (ev) {
     if (ev.key !== 'Shift') return;
     shiftHeld = false;
-    hideCursorTag();
+    updateCursorTag();
     rePaintCurrentHighlight();
   }, true);
 
   window.addEventListener('blur', function () {
     if (!shiftHeld) return;
     shiftHeld = false;
-    hideCursorTag();
+    updateCursorTag();
   });
 
   let highlightEl = null;
@@ -198,7 +198,7 @@ export const OVERLAY_SCRIPT = String.raw`
   document.addEventListener('mousemove', function (ev) {
     lastMouseX = ev.clientX;
     lastMouseY = ev.clientY;
-    if (shiftHeld) updateCursorTag();
+    updateCursorTag();
     if (!window.__liecinieksState.recording) return;
     if (isUiOpen()) {
       hideHighlight();
@@ -244,7 +244,7 @@ export const OVERLAY_SCRIPT = String.raw`
 
   function updateCursorTag() {
     const node = ensureCursorTag();
-    if (!shiftHeld || !window.__liecinieksState.recording || isUiOpen()) {
+    if (!window.__liecinieksState.recording || isUiOpen()) {
       node.style.display = 'none';
       return;
     }
@@ -253,21 +253,34 @@ export const OVERLAY_SCRIPT = String.raw`
     node.style.textTransform = 'none';
     node.style.letterSpacing = '0';
     node.style.fontWeight = '500';
-    const lbl = st.activeLabel;
-    if (lbl) {
-      const flags = [];
-      if (st.verifyLocation) flags.push('+loc');
-      if (st.negate) flags.push('NOT');
-      const flagStr = flags.length ? '  ' + flags.join(' ') : '';
-      node.textContent = lbl + flagStr;
-      node.style.background = st.negate ? '#f87171' : '#06b6d4';
-      node.style.color = '#ffffff';
-      node.style.border = '0';
+    if (shiftHeld) {
+      const lbl = st.activeLabel;
+      if (lbl) {
+        const flags = [];
+        if (st.verifyLocation) flags.push('+loc');
+        if (st.negate) flags.push('NOT');
+        const flagStr = flags.length ? '  ' + flags.join(' ') : '';
+        node.textContent = 'assert · ' + lbl + flagStr;
+        node.style.background = st.negate ? '#f87171' : '#06b6d4';
+        node.style.color = '#ffffff';
+        node.style.border = '0';
+        node.style.fontSize = '12px';
+        node.style.opacity = '1';
+      } else {
+        node.textContent = 'assert · right-click to pick a label';
+        node.style.background = '#27272a';
+        node.style.color = '#e4e4e7';
+        node.style.border = '0';
+        node.style.fontSize = '12px';
+        node.style.opacity = '1';
+      }
     } else {
-      node.textContent = 'Right-click to pick a label';
-      node.style.background = '#27272a';
-      node.style.color = '#e4e4e7';
+      node.textContent = 'navigate';
+      node.style.background = 'rgba(39, 39, 42, 0.85)';
+      node.style.color = '#a1a1aa';
       node.style.border = '0';
+      node.style.fontSize = '11px';
+      node.style.opacity = '0.85';
     }
     const offsetX = 14;
     const offsetY = 16;
@@ -771,7 +784,7 @@ export const OVERLAY_SCRIPT = String.raw`
 
   window.__liecinieksRender = function () {
     rePaintCurrentHighlight();
-    if (shiftHeld) updateCursorTag();
+    updateCursorTag();
   };
 })();
 `;
