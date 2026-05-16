@@ -327,7 +327,7 @@ textarea {
 :root[data-theme="dark"] select,
 :root[data-theme="dark"] textarea {
   background: #18181b;
-  border-color: #18181b;
+  border-color: var(--border-strong);
 }
 
 input[type='text']:focus,
