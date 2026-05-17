@@ -44,6 +44,7 @@ test.use({
 
 test(${safeName}, async ({ page }, testInfo) => {
   await page.goto(${JSON.stringify(scenario.startUrl)}, { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle').catch(() => undefined);
   ${stepsCode}
 });
 `;
