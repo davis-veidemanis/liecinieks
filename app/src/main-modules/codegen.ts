@@ -52,7 +52,8 @@ test(${safeName}, async ({ page }, testInfo) => {
 
 function stepToCode(step: Step): string {
   if (step.type === 'navigate') {
-    return `await page.locator(${JSON.stringify(step.selector)}).first().click();`;
+    return `await page.locator(${JSON.stringify(step.selector)}).first().click();
+  await page.waitForLoadState('networkidle', { timeout: 4000 }).catch(() => undefined);`;
   }
   if (step.type === 'type') {
     return `await page.locator(${JSON.stringify(step.selector)}).first().fill(${JSON.stringify(step.text)});`;
