@@ -17,7 +17,8 @@ test('PDP — signature regions visible after clicking a product', async ({ page
     'pdp_add_to_cart_btn',
     'pdp_add_to_favorites_btn',
     'pdp_compare_btn',
-    'pdp_item_container',
+    'pdp_item_count',
+    'pdp_product_tags',
   ];
 
   for (const label of visible) {

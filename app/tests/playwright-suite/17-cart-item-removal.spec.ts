@@ -25,9 +25,18 @@ test('cart — removing the only item empties the cart', async ({ page }, testIn
   });
 
   await page.locator('table tbody tr a.btn-danger').first().click();
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1200);
 
-  for (const label of ['cart_item', 'cart_total', 'cart_quantity']) {
+  await yoloAssertVisible(page, testInfo, {
+    weights: WEIGHTS,
+    labels: LABELS,
+    label: 'cart_product_deleted',
+    verifyLocation: false,
+    expectedBbox: { x: 0, y: 0, w: 0, h: 0 },
+    iouThreshold: IOU_THRESHOLD,
+    negate: false,
+  });
+  for (const label of ['cart_item', 'cart_total', 'cart_remove_item']) {
     await yoloAssertVisible(page, testInfo, {
       weights: WEIGHTS,
       labels: LABELS,

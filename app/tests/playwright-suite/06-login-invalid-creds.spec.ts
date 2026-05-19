@@ -30,7 +30,7 @@ test('login — invalid credentials show the auth-error region', async ({ page }
   });
 
   await page.locator('[data-test="email"]').fill('nobody@example.invalid');
-  await page.locator('input[formcontrolname="password"]').fill('definitely-not-the-password');
+  await page.locator('input[type="password"]').first().fill('definitely-not-the-password');
   await page.locator('[data-test="login-submit"]').click();
   await page.locator('[data-test="login-error"]').waitFor({ state: 'visible' });
 

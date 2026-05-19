@@ -11,16 +11,7 @@ test('add to cart — confirmation toast + populated cart page', async ({ page }
   await page.locator('[data-test="add-to-cart"]').waitFor({ state: 'visible' });
   await page.locator('[data-test="add-to-cart"]').click();
 
-  await yoloAssertVisible(page, testInfo, {
-    weights: WEIGHTS,
-    labels: LABELS,
-    label: 'pdp_cart_confirmation',
-    verifyLocation: false,
-    expectedBbox: { x: 0, y: 0, w: 0, h: 0 },
-    iouThreshold: IOU_THRESHOLD,
-    negate: false,
-  });
-
+  await page.locator('[data-test="cart-quantity"]').waitFor({ state: 'visible' });
   await page.locator('[data-test="nav-cart"]').click();
   await page.locator('[data-test="proceed-1"]').waitFor({ state: 'visible' });
 

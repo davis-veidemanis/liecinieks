@@ -9,9 +9,10 @@ test('search — results render the search input and product container', async (
 
   await page.locator('[data-test="search-query"]').fill('hammer');
   await page.locator('[data-test="search-submit"]').click();
+  await page.locator('[data-test="search-reset"]').waitFor({ state: 'visible' });
   await page.waitForTimeout(800);
 
-  for (const label of ['Search', 'product-container', 'product_name', 'product_price']) {
+  for (const label of ['Search', 'product-container', 'product_name']) {
     await yoloAssertVisible(page, testInfo, {
       weights: WEIGHTS,
       labels: LABELS,

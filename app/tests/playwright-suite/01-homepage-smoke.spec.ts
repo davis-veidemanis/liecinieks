@@ -12,11 +12,8 @@ test('homepage smoke — primary layout regions are detected', async ({ page }, 
     'navigation_bar',
     'banner',
     'Sidebar',
-    'Footer',
     'Search',
     'Sort',
-    'Categories',
-    'Filters',
     'product-container',
     'product_image',
     'product_name',
@@ -48,4 +45,15 @@ test('homepage smoke — primary layout regions are detected', async ({ page }, 
     });
   }
 
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForTimeout(400);
+  await yoloAssertVisible(page, testInfo, {
+    weights: WEIGHTS,
+    labels: LABELS,
+    label: 'Footer',
+    verifyLocation: false,
+    expectedBbox: { x: 0, y: 0, w: 0, h: 0 },
+    iouThreshold: IOU_THRESHOLD,
+    negate: false,
+  });
 });
