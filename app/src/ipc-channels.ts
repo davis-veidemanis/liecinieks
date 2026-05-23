@@ -1,4 +1,5 @@
 export const IPC = {
+  // Renderer → Main (invoke)
   LOAD_MODEL: 'load-model',
   LIST_SCENARIOS: 'list-scenarios',
   LOAD_SCENARIO: 'load-scenario',
@@ -8,6 +9,7 @@ export const IPC = {
   CLOSE_TARGET: 'close-target',
   SET_RECORDING_MODE: 'set-recording-mode',
 
+  // Main → Renderer (event)
   EVT_PAGE_CLICK: 'evt-page-click',
   EVT_PAGE_NAVIGATED: 'evt-page-navigated',
   EVT_PAGE_CLOSED: 'evt-page-closed',

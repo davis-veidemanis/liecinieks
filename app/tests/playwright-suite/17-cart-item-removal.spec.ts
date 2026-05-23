@@ -1,9 +1,12 @@
+// Add one line to the cart and then remove it. After removal, the
+// cart_item region should disappear and the cart_product_deleted
+// confirmation should briefly show up.
 
 import { test } from '@playwright/test';
 import { yoloAssertVisible } from './liecinieks-runtime';
 import { WEIGHTS, LABELS, IOU_THRESHOLD } from './liecinieks-config';
 
-test('cart — removing the only item empties the cart', async ({ page }, testInfo) => {
+test('cart, removing the only item empties the cart', async ({ page }, testInfo) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-test^="product-"][data-test*="01"]').first().waitFor({ state: 'visible' });
   await page.locator('[data-test^="product-"][data-test*="01"]').first().click();
@@ -14,6 +17,7 @@ test('cart — removing the only item empties the cart', async ({ page }, testIn
   await page.locator('[data-test="nav-cart"]').click();
   await page.locator('[data-test="proceed-1"]').waitFor({ state: 'visible' });
 
+  // Sanity check: before deletion cart_item is visible.
   await yoloAssertVisible(page, testInfo, {
     weights: WEIGHTS,
     labels: LABELS,
@@ -24,9 +28,12 @@ test('cart — removing the only item empties the cart', async ({ page }, testIn
     negate: false,
   });
 
+  // Click the red remove icon (last cell of the only cart row).
   await page.locator('table tbody tr a.btn-danger').first().click();
   await page.waitForTimeout(1200);
 
+  // After removal: the cart_product_deleted region renders (empty-state
+  // message), and the row, totals, and remove icon disappear.
   await yoloAssertVisible(page, testInfo, {
     weights: WEIGHTS,
     labels: LABELS,

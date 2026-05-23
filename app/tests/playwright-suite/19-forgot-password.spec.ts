@@ -1,9 +1,11 @@
+// Forgot-password flow, click the link on the login page and check that
+// the forgot-password form and email field render.
 
 import { test } from '@playwright/test';
 import { yoloAssertVisible } from './liecinieks-runtime';
 import { WEIGHTS, LABELS, IOU_THRESHOLD } from './liecinieks-config';
 
-test('forgot password — form + email field detected after click', async ({ page }, testInfo) => {
+test('forgot password, form + email field detected after click', async ({ page }, testInfo) => {
   await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-test="forgot-password-link"]').waitFor({ state: 'visible' });
   await page.locator('[data-test="forgot-password-link"]').click();

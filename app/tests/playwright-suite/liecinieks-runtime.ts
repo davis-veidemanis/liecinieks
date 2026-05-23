@@ -1,3 +1,7 @@
+// Liecinieks runtime, handles the YOLO inference call and bbox IoU comparison.
+// Mirrors the runtime that the Liecinieks app ships through its codegen, so
+// hand-written tests in this folder produce the same artifacts (screenshots
+// and detection JSON) as the recorded ones.
 
 import { Page, TestInfo, expect } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
@@ -22,6 +26,7 @@ export type AssertionOptions = {
   negate: boolean;
 };
 
+// Screenshot the page, run YOLO inference, and fail the test if the expected label isn't where we want it.
 export async function yoloAssertVisible(
   page: Page,
   testInfo: TestInfo,
@@ -43,11 +48,15 @@ export async function yoloAssertVisible(
   const expectedTrue = !opts.negate;
   const passed = asserted === expectedTrue;
 
+  // Attach the annotated screenshot to the test report on every assertion
+  // (positive or negative), so the report shows exactly what YOLO picked up
+  // at each step.
   await testInfo.attach(`liecinieks-yolo-view-${seq}-${opts.label}-${passed ? 'pass' : 'FAIL'}`, {
     path: annotated,
     contentType: 'image/png',
   });
 
+  // Short log per assertion so the live test output shows what was detected.
   logAssertion(opts, detections, matches, passed);
 
   if (passed) {
@@ -55,6 +64,8 @@ export async function yoloAssertVisible(
     return;
   }
 
+  // On failure, also attach the raw screenshot and the structured detections
+  // alongside the annotated view, which helps with debugging.
   await testInfo.attach(`liecinieks-screenshot-${seq}`, {
     path: screenshot,
     contentType: 'image/png',
@@ -76,6 +87,7 @@ export async function yoloAssertVisible(
   ).toBe(true);
 }
 
+// Print a short pass/fail summary for the current assertion to the test console.
 function logAssertion(
   opts: AssertionOptions,
   detections: Detection[],
@@ -92,13 +104,15 @@ function logAssertion(
     .slice(0, 6)
     .map((d) => `${d.className}:${d.confidence.toFixed(2)}`)
     .join(' ');
+  // eslint-disable-next-line no-console
   console.log(
-    `  ${verdict} assert ${opts.label} ${mode} — ` +
+    `  ${verdict} assert ${opts.label} ${mode}, ` +
       `model saw ${detections.length} regions (${matches.length}× ${opts.label}${matchConf}) ` +
       `others: ${others}${detections.length > 7 ? ' …' : ''}`,
   );
 }
 
+// Spawn the Python inference script and parse the detections it prints to stdout.
 function runInference(weights: string, screenshot: string, annotated: string): Detection[] {
   const scriptPath = path.join(__dirname, 'liecinieks-inference.py');
   const python = process.env.LIECINIEKS_PYTHON || 'python3';
@@ -113,6 +127,7 @@ function runInference(weights: string, screenshot: string, annotated: string): D
   return JSON.parse(result.stdout) as Detection[];
 }
 
+// Intersection-over-union for two bboxes; returns 0 when they don't overlap.
 function iou(a: BBox, b: BBox): number {
   const xa2 = a.x + a.w;
   const ya2 = a.y + a.h;
@@ -129,6 +144,7 @@ function iou(a: BBox, b: BBox): number {
   return union > 0 ? inter / union : 0;
 }
 
+// Compose a multi-line failure message with detection counts and the path to the debug screenshot.
 function buildFailureMessage(
   opts: AssertionOptions,
   all: Detection[],

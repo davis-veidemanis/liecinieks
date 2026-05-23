@@ -9,11 +9,13 @@ type ThemePref = 'system' | 'light' | 'dark';
 
 const THEME_KEY = 'liecinieks-theme';
 
+// Read the saved theme preference from localStorage, defaulting to 'system'.
 function readThemePref(): ThemePref {
   const v = localStorage.getItem(THEME_KEY);
   return v === 'light' || v === 'dark' ? v : 'system';
 }
 
+// Resolve 'system' to the current OS preference and set the data-theme attribute.
 function applyTheme(theme: ThemePref): void {
   const resolved =
     theme === 'system'
@@ -22,6 +24,7 @@ function applyTheme(theme: ThemePref): void {
   document.documentElement.setAttribute('data-theme', resolved);
 }
 
+// Root React component: routes between setup and recording screens and wires overlay events into the store.
 export default function App() {
   const [screen, setScreen] = useState<Screen>('setup');
   const [themePref, setThemePref] = useState<ThemePref>(readThemePref);
@@ -82,7 +85,11 @@ export default function App() {
     return () => clearTimeout(t);
   }, [notice, setNotice]);
 
+  // Open the Playwright-driven browser for the current scenario, then switch to the recorder screen.
   async function continueToRecorder() {
+    // We read from the store at call time. SetupScreen updates the store and
+    // calls us synchronously, so the closure `scenario` is still the
+    // pre-update value (null on the first run).
     const s = useStore.getState().scenario;
     if (!s) return;
     try {
@@ -93,6 +100,7 @@ export default function App() {
     }
   }
 
+  // Return to the setup screen after the recorder finishes.
   function backToSetup() {
     setScreen('setup');
   }
@@ -148,7 +156,7 @@ export default function App() {
       <footer className="statusbar">
         <span className="seg">
           <span className="k">Scenario:</span>
-          <span className="v">{scenario?.name ?? '—'}</span>
+          <span className="v">{scenario?.name ?? '-'}</span>
         </span>
         <span className="seg">
           <span className="k">Steps:</span>
@@ -163,7 +171,7 @@ export default function App() {
         <span className="spacer" />
         <span className="seg">
           <span className="k">Viewport:</span>
-          <span className="v">{scenario ? `${scenario.viewport.width}×${scenario.viewport.height}` : '—'}</span>
+          <span className="v">{scenario ? `${scenario.viewport.width}×${scenario.viewport.height}` : '-'}</span>
         </span>
       </footer>
 

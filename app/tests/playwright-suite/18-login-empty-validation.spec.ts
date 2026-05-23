@@ -1,9 +1,11 @@
+// Submitting an empty login form triggers per-field validation. The
+// trained model has separate labels for both empty-field errors.
 
 import { test } from '@playwright/test';
 import { yoloAssertVisible } from './liecinieks-runtime';
 import { WEIGHTS, LABELS, IOU_THRESHOLD } from './liecinieks-config';
 
-test('login — empty submit triggers email + password errors', async ({ page }, testInfo) => {
+test('login, empty submit triggers email + password errors', async ({ page }, testInfo) => {
   await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-test="login-submit"]').waitFor({ state: 'visible' });
 
@@ -19,6 +21,8 @@ test('login — empty submit triggers email + password errors', async ({ page },
     });
   }
 
+  // Focus and then blur each field to trigger Angular's touched-state
+  // errors.
   await page.locator('[data-test="email"]').click();
   await page.locator('input[type="password"]').first().click();
   await page.locator('[data-test="email"]').click();

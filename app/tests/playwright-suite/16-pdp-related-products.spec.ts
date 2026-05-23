@@ -1,14 +1,18 @@
+// On the product detail page, scrolling past the main panels reveals a
+// related-products carousel. The trained model has a separate
+// `pdp_related_products` label for this section.
 
 import { test } from '@playwright/test';
 import { yoloAssertVisible } from './liecinieks-runtime';
 import { WEIGHTS, LABELS, IOU_THRESHOLD } from './liecinieks-config';
 
-test('PDP — related products section is detected after scroll', async ({ page }, testInfo) => {
+test('PDP, related products section is detected after scroll', async ({ page }, testInfo) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-test^="product-"][data-test*="01"]').first().waitFor({ state: 'visible' });
   await page.locator('[data-test^="product-"][data-test*="01"]').first().click();
   await page.locator('[data-test="add-to-cart"]').waitFor({ state: 'visible' });
 
+  // Scroll to the bottom so the related-products carousel comes into view.
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.waitForTimeout(600);
 

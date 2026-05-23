@@ -4,6 +4,7 @@ import { liecinieks } from './types-bridge';
 import type { ViewportSize } from '../types';
 import { VIEWPORT_PRESETS } from '../types';
 
+// First-screen UI: load a YOLO model, name the scenario, and pick the viewport.
 export function SetupScreen({ onContinue }: { onContinue: () => void }) {
   const labels = useStore((s) => s.labels);
   const weightsPath = useStore((s) => s.weightsPath);
@@ -19,6 +20,7 @@ export function SetupScreen({ onContinue }: { onContinue: () => void }) {
   const [customHeight, setCustomHeight] = useState(900);
   const [customDsf, setCustomDsf] = useState(2);
 
+  // Open the model + labels picker and push the loaded weights into the store.
   async function chooseModel() {
     try {
       const data = await liecinieks.loadModel();
@@ -30,6 +32,7 @@ export function SetupScreen({ onContinue }: { onContinue: () => void }) {
     }
   }
 
+  // Validate the form, create a fresh scenario in the store, and continue to the recorder.
   function startNew() {
     if (!scenarioName.trim()) {
       setNotice('Scenario needs a name.');

@@ -1,9 +1,12 @@
+// Each individual nav link is its own labeled region in the trained model.
+// Loading the homepage anonymously should give us: home, categories,
+// contact, sign in, language, five separate detections.
 
 import { test } from '@playwright/test';
 import { yoloAssertVisible } from './liecinieks-runtime';
 import { WEIGHTS, LABELS, IOU_THRESHOLD } from './liecinieks-config';
 
-test('nav links — every top-level nav region is detected', async ({ page }, testInfo) => {
+test('nav links, every top-level nav region is detected', async ({ page }, testInfo) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-test="product-name"]').first().waitFor({ state: 'visible' });
 

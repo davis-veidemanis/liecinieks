@@ -1,3 +1,6 @@
+// Standalone probe that injects the overlay script into a throwaway Chromium
+// page and triggers showLabelMenu with a synthetic right-click. Used to check
+// the menu layout without going through the full Liecinieks recording flow.
 
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
@@ -8,10 +11,12 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const OVERLAY_TS = resolve(HERE, '..', 'src', 'main-modules', 'overlay.ts');
 const OUT_DIR = '/tmp/liecinieks-probe';
 
+// Drive a headless Chromium through the overlay sidebar and snapshot each visible state.
 async function main() {
   await fs.mkdir(OUT_DIR, { recursive: true });
 
   const overlayText = await fs.readFile(OVERLAY_TS, 'utf-8');
+  // Pull out the JS payload between String.raw` ... `;
   const m = overlayText.match(/export const OVERLAY_SCRIPT = String\.raw`([\s\S]*?)`;\s*$/m);
   if (!m) throw new Error('Could not extract OVERLAY_SCRIPT from overlay.ts');
   const script = m[1];
@@ -61,6 +66,7 @@ async function main() {
       `),
   );
 
+  // Seed the labels into the overlay state.
   await page.evaluate((labels) => {
     window.__liecinieksState = {
       recording: true,
@@ -71,15 +77,18 @@ async function main() {
     };
   }, labels);
 
+  // Synthetic right-click on the heading.
   await page.click('#hd', { button: 'right' });
 
+  // Wait for the menu to mount, then for the slide-in transition to finish.
   await page.waitForSelector('#__liecinieks-menu', { state: 'attached' });
   await page.waitForTimeout(260);
 
+  // Read the computed sidebar layout so we can debug without screenshots.
   const layout = await page.evaluate(() => {
     const menu = document.getElementById('__liecinieks-menu');
     if (!menu) return null;
-    const bar = menu.children[1]; 
+    const bar = menu.children[1]; // [0] backdrop, [1] bar
     const rect = bar.getBoundingClientRect();
     const okBtn = document.getElementById('__liecinieks-menu-ok');
     const bulkBtn = document.getElementById('__liecinieks-menu-bulk');
@@ -97,6 +106,7 @@ async function main() {
 
   await page.screenshot({ path: `${OUT_DIR}/sidebar-default.png`, fullPage: false });
 
+  // Click one chip so we can see the selected state.
   await page.evaluate(() => {
     const chip = Array.from(document.querySelectorAll('#__liecinieks-menu button')).find(
       (b) => b.textContent === 'logo',
@@ -106,6 +116,7 @@ async function main() {
   await page.waitForTimeout(100);
   await page.screenshot({ path: `${OUT_DIR}/sidebar-selected.png`, fullPage: false });
 
+  // Type into the search box.
   await page.fill('#__liecinieks-menu input[type="search"]', 'cart');
   await page.waitForTimeout(100);
   await page.screenshot({ path: `${OUT_DIR}/sidebar-filtered.png`, fullPage: false });

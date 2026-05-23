@@ -3,6 +3,7 @@ import { useStore } from './store';
 import { liecinieks } from './types-bridge';
 import { StepList } from './StepList';
 
+// Recording UI: shows the active scenario, step list, and save/export controls.
 export function RecorderScreen({ onBack }: { onBack: () => void }) {
   const scenario = useStore((s) => s.scenario);
   const setNotice = useStore((s) => s.setNotice);
@@ -17,6 +18,7 @@ export function RecorderScreen({ onBack }: { onBack: () => void }) {
     return null;
   }
 
+  // Persist the current scenario to disk and show a toast with the file name.
   async function saveScenario() {
     if (!scenario) return;
     setSavingBusy(true);
@@ -30,6 +32,7 @@ export function RecorderScreen({ onBack }: { onBack: () => void }) {
     }
   }
 
+  // Export the recorded steps as a Playwright spec, prompting for an output folder.
   async function exportCode() {
     if (!scenario) return;
     if (scenario.steps.length === 0) {
@@ -51,6 +54,7 @@ export function RecorderScreen({ onBack }: { onBack: () => void }) {
     }
   }
 
+  // Tear down the Playwright browser and return to the setup screen.
   async function closeBrowser() {
     await liecinieks.closeTarget();
     onBack();
@@ -116,7 +120,7 @@ export function RecorderScreen({ onBack }: { onBack: () => void }) {
               </span>
             ) : (
               <span style={{ color: 'var(--text-faint)', fontSize: 12.5 }}>
-                none — right-click in the browser to pick one
+                none, right-click in the browser to pick one
               </span>
             )}
           </div>
@@ -127,12 +131,12 @@ export function RecorderScreen({ onBack }: { onBack: () => void }) {
               <i>NOT visible</i>) are sticky and apply to every Shift+click that follows.
             </li>
             <li>
-              <b>Hold Shift</b> to enter assertion-targeting mode — a small pill follows the
+              <b>Hold Shift</b> to enter assertion-targeting mode, a small pill follows the
               cursor showing the active label. <b>Shift+click</b> an element to record a
               visibility assertion (green flash = recorded; amber flash = no label set).
             </li>
             <li>
-              <b>Plain left-click</b> is just normal browsing — the click is recorded as a
+              <b>Plain left-click</b> is just normal browsing, the click is recorded as a
               navigation step and propagates to the page (inputs still open the type-text dialog).
             </li>
           </ul>

@@ -6,14 +6,14 @@ UI elementi ir vai nav redzami uz lapas.
 
 Sistēma sastāv no diviem komponentiem:
 
-- **Liecinieks lietotne** — Electron + React + Playwright ierakstītājs, kas
+- **Liecinieks lietotne**, Electron + React + Playwright ierakstītājs, kas
   uztver lietotāja mijiedarbības mērķa mājaslapā un eksportē tās kā
   neatkarīgus Playwright testu failus.
-- **Playwright izpildlaiks** — eksportētie testi izpildes laikā uzņem
+- **Playwright izpildlaiks**, eksportētie testi izpildes laikā uzņem
   ekrānuzņēmumus, palaiž Python YOLO inferenci un salīdzina detekcijas
   ar scenārija pārbaudēm.
 
-Demonstrācijas mājaslapa: <https://practicesoftwaretesting.com> — brīvi
+Demonstrācijas mājaslapa: <https://practicesoftwaretesting.com>, brīvi
 pieejama e-komercijas demo lapa. Apmācītais modelis atpazīst 80 unikālus UI
 marķējumus (skat. `yolo-data/data.yaml`).
 
@@ -21,7 +21,7 @@ marķējumus (skat. `yolo-data/data.yaml`).
 
 Klasiska Playwright testēšana paļaujas uz DOM selektoriem
 (`page.locator('.button-class')`), kas pārtrūkst pie jebkurām markup
-izmaiņām. Liecinieks vietā balstās uz to, kā elements *izskatās* —
+izmaiņām. Liecinieks vietā balstās uz to, kā elements *izskatās* -
 apmācīts YOLO modelis atpazīst UI elementu klases tieši no ekrānuzņēmuma,
 un tests apgalvo, ka šī klase ir vai nav redzama paredzētajā vietā.
 
@@ -57,13 +57,13 @@ papildus pārbauda, vai detekcijas bbox pārklājas ar paredzēto
 
 ## Mijiedarbības modelis (ierakstītājā)
 
-- **Labais klikšķis** uz jebkura elementa atver marķējumu izvēlētāju —
+- **Labais klikšķis** uz jebkura elementa atver marķējumu izvēlētāju -
   izvēlies marķējumu, un tas kļūst par "aktīvo" līdz sesijas beigām.
-- **Tur Shift** — pie kursora parādās maza pile ar aktīvā marķējuma
+- **Tur Shift**, pie kursora parādās maza pile ar aktīvā marķējuma
   nosaukumu.
-- **Shift + kreisais klikšķis** — ieraksta redzamības pārbaudi ar aktīvo
+- **Shift + kreisais klikšķis**, ieraksta redzamības pārbaudi ar aktīvo
   marķējumu šim elementam.
-- **Vienkāršs kreisais klikšķis** — normāla lapas mijiedarbība, ierakstīta
+- **Vienkāršs kreisais klikšķis**, normāla lapas mijiedarbība, ierakstīta
   kā navigācijas solis (ievades laukos atver teksta dialogu).
 
 ## Repozitorija struktūra
@@ -120,7 +120,7 @@ npm run dev                                  # NEvis npm start
 
 `npm run dev` palaiž `scripts/dev.mjs`, kas pārbūvē `main.ts` + `preload.ts`
 caur electron-forge, manuāli startē Vite uz 127.0.0.1:5173, gaida socket
-piesaisti un tad palaiž Electron. **Nelieto `npm start`** — `electron-forge
+piesaisti un tad palaiž Electron. **Nelieto `npm start`**, `electron-forge
 start` ir salauzts šajā vidē (plugin-vite 7.11.1 + Electron 42 macOS
 Sequoia iznīcina Vite tūlīt pēc Electron palaišanas; logs paliek tukšs).
 
@@ -128,14 +128,14 @@ Iepakotai būvei: `npm run package` → `out/app-darwin-arm64/Liecinieks.app`.
 
 ## Kā lietot
 
-1. **Ielādēt modeli** — izvēlies YOLO `.pt` svaru failu un `yolo-data/labels.csv`
+1. **Ielādēt modeli**, izvēlies YOLO `.pt` svaru failu un `yolo-data/labels.csv`
    (vai citu CSV ar `class_id, class_name` kolonnām).
-2. **Jauns scenārijs** — iestati nosaukumu, mērķa URL (http(s)) un skata izmēru.
-3. **Atvērt pārlūku un sākt ierakstu** — Playwright atver Chromium ar
+2. **Jauns scenārijs**, iestati nosaukumu, mērķa URL (http(s)) un skata izmēru.
+3. **Atvērt pārlūku un sākt ierakstu**, Playwright atver Chromium ar
    ievadītu pārklājuma skriptu.
 4. **Veido scenāriju** caur Shift+klikšķa mijiedarbības modeli (skat. augstāk).
-5. **Saglabāt scenāriju** — ieraksta JSON `<userData>/scenarios/`.
-6. **Eksportēt Playwright testu…** — izvēlies mapi; lietotne ieraksta
+5. **Saglabāt scenāriju**, ieraksta JSON `<userData>/scenarios/`.
+6. **Eksportēt Playwright testu…**, izvēlies mapi; lietotne ieraksta
    `<scenārijs>.spec.ts`, `liecinieks-runtime.ts` un `liecinieks-inference.py`.
 
 ## Palaist testus
@@ -150,7 +150,7 @@ npm run report                               # atver HTML atskaiti
 
 `LIECINIEKS_PYTHON` vides mainīgais norāda izpildlaikam, kuru Python lietot
 YOLO inferencei. macOS šis ir obligāts, jo Homebrew Python ir
-externally-managed (PEP 668) — sistēmas `pip` nevar globāli instalēt
+externally-managed (PEP 668), sistēmas `pip` nevar globāli instalēt
 ultralytics.
 
 Sīkāku informāciju par konkrētiem testiem skat. `tests/playwright-suite/README.md`.
@@ -160,15 +160,15 @@ Sīkāku informāciju par konkrētiem testiem skat. `tests/playwright-suite/READ
 Lai eksportētie testi būtu uzticami pret SPA mērķa lapām, codegen
 automātiski iekļauj divas gaidīšanas:
 
-- Pēc `page.goto`: `await page.waitForLoadState('networkidle')` — gaida
+- Pēc `page.goto`: `await page.waitForLoadState('networkidle')`, gaida
   SPA hidratāciju (Angular/React komponenšu uzlikšanu).
-- Pēc katra klikšķa: `await page.waitForLoadState('networkidle', { timeout: 4000 })` —
+- Pēc katra klikšķa: `await page.waitForLoadState('networkidle', { timeout: 4000 })` -
   gaida XHR atbildes vai navigāciju, ar laika limitu lapām, kas
   nepārtraukti apmainās ar tīklu.
 
 Šī loģika novērš lielāko daļu sākotnējās ielādes un pēc-klikšķa
 sacensību. CSS pārejas un animācijas, kas nav saistītas ar tīklu,
-joprojām var izrādīties problemātiskas — pilnam robustumam nepieciešams
+joprojām var izrādīties problemātiskas, pilnam robustumam nepieciešams
 bagātināt `Step` shēmu ar `waitAfter` lauku vai ierakstīt īpašus
 `wait-for-selector` soļus.
 

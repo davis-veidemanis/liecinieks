@@ -1,4 +1,4 @@
-# Liecinieks testu komplekts — practicesoftwaretesting.com
+# Liecinieks testu komplekts, practicesoftwaretesting.com
 
 Divdesmit Playwright testi, no kuriem katrs izmēģina citu lietotāja plūsmu
 un citu YOLO marķējumu grupu mērķa mājaslapā. Katra pārbaude pamatā palaiž
@@ -31,7 +31,7 @@ Statuss: visi 20 testi sekmīgi izpildās pret dzīvo mājaslapu (~3 min kopumā
 | 19 | `19-forgot-password` | Klikšķis "Forgot Password?" | forgot_password_from + forgot_password_email |
 | 20 | `20-pagination` | Sākumlapas ritināšana uz apakšu | page_count paginatora logrīks |
 
-Testi numurēti, bet nav sakārtoti — katrs ir neatkarīgs un izveido savu
+Testi numurēti, bet nav sakārtoti, katrs ir neatkarīgs un izveido savu
 pārlūka kontekstu.
 
 ## Anotēti ekrānuzņēmumi katrā pārbaudē
@@ -39,29 +39,28 @@ pārlūka kontekstu.
 Sākot ar dotā komplekta versiju, *katra* pārbaude (pozitīva vai negatīva)
 pievieno HTML atskaitei anotētu PNG ar uzzīmētiem YOLO bbox, klases nosaukumu
 un confidence vērtību virs katras detekcijas. Tas ļauj atskaitē redzēt tieši
-to, ko modelis "redzēja" katrā solī. Krāsas ir stabilas pa klasēm — tas pats
+to, ko modelis "redzēja" katrā solī. Krāsas ir stabilas pa klasēm, tas pats
 marķējums vienmēr tiks atveidots ar to pašu toni.
 
 Reāllaika izvadē katrai pārbaudei tiek izdrukāta arī viena rinda:
-`✓ assert <marķējums> visible — model saw N regions (k× match …)`.
+`✓ assert <marķējums> visible, model saw N regions (k× match …)`.
 
 ## Priekšnoteikumi
 
 1. **Node 18+** Playwright vajadzībām.
 2. **Python 3.10+** ar instalētu `ultralytics` (`pip install ultralytics`).
-   Repozitorija `.venv` jau ir gatava:
-   `/Users/davisveidemanis/Desktop/bakalaurs/.venv/bin/python3`.
+   Repozitorijas `.venv/bin/python3` jau ir gatavs.
 3. **Apmācītie svari** atrodas `yolo-results/runs/YOLOv12s/weights/best.pt`
    un **marķējumu CSV** `yolo-results/labels.csv`. Abi ceļi ir iekodēti
-   `liecinieks-config.ts` — rediģējiet to, ja faili pārvietoti.
+   `liecinieks-config.ts`, rediģējiet to, ja faili pārvietoti.
 
 ## Pirmā palaišana
 
 ```bash
-cd /Users/davisveidemanis/Desktop/bakalaurs/tests/playwright-suite
+cd app/tests/playwright-suite
 npm install                          # vienreizēji, instalē @playwright/test
 npx playwright install chromium      # vienreizēji, lejupielādē Chromium
-LIECINIEKS_PYTHON=/Users/davisveidemanis/Desktop/bakalaurs/.venv/bin/python3 \
+LIECINIEKS_PYTHON=../../../.venv/bin/python3 \
   npm test
 ```
 
@@ -80,20 +79,20 @@ npm run report                # atver atskaiti noklusētajā pārlūkā
 
 Katrai pārbaudei tiek pievienots:
 
-- `liecinieks-yolo-view-N-<marķējums>-pass/FAIL.png` — anotēts ekrānuzņēmums
+- `liecinieks-yolo-view-N-<marķējums>-pass/FAIL.png`, anotēts ekrānuzņēmums
   ar YOLO bbox, klases nosaukumiem un confidence vērtībām.
 
 Neveiksmīgai pārbaudei papildus tiek pievienots:
 
-- `liecinieks-screenshot-N.png` — neapstrādātais ekrānuzņēmums.
-- `liecinieks-detections-N.json` — pilna detekciju saraksta un asserta opciju kopija.
+- `liecinieks-screenshot-N.png`, neapstrādātais ekrānuzņēmums.
+- `liecinieks-detections-N.json`, pilna detekciju saraksta un asserta opciju kopija.
 
 ## Headed režīms (vizuālā demonstrācija)
 
 Lai pārlūka logu redzētu reālajā laikā:
 
 ```bash
-LIECINIEKS_PYTHON=/Users/davisveidemanis/Desktop/bakalaurs/.venv/bin/python3 \
+LIECINIEKS_PYTHON=../../../.venv/bin/python3 \
   npx playwright test --headed
 ```
 
@@ -107,7 +106,7 @@ ietekmē detekcijas (skat. 09. testa piezīmes par testing_banner).
   filtrēt detekcijas striktāk vai brīvāk.
 - **IoU slieksnis** `verifyLocation` pārbaudēm: mainās caur `IOU_THRESHOLD`
   `liecinieks-config.ts` (noklusētais `0.5`). Šobrīd neviena pārbaude
-  neizmanto `verifyLocation: true` — visi ir tīri "vai šī klase ir redzama
+  neizmanto `verifyLocation: true`, visi ir tīri "vai šī klase ir redzama
   kaut kur ekrānā". Bbox-precīzām pārbaudēm ierakstiet scenāriju ar
   Liecinieks lietotni.
 
@@ -131,10 +130,10 @@ Divi veidi:
 - **Botu bloķēšana**: mājaslapa reizēm atgriež 403 ne-pārlūka user-agentam.
   Playwright noklusētais Chromium UA strādā; tieši `curl` / `WebFetch` ne.
 - **ULID produktu URL**: sākumlapas produktu kartītēm ir `data-test="product-01J..."`
-  — specifikācijas izmanto prefiksa selektoru (`[data-test^="product-"]`), kas
+ , specifikācijas izmanto prefiksa selektoru (`[data-test^="product-"]`), kas
   ir stabils dažādās produktu katalogu versijās.
 - **Pirmā inference ir lēna**: Ultralytics ielādē modeli pirmajā izsaukumā
-  (~3–8 s). Nākamie izsaukumi atkārtoti izmanto cache, bet katra pārbaude
+  (~3-8 s). Nākamie izsaukumi atkārtoti izmanto cache, bet katra pārbaude
   palaiž jaunu Python procesu, tāpēc warm-up notiek vienreiz uz pārbaudi.
   Akceptējams bezsaistes komplektam; ātrākai izpildei nepieciešams ilgi
   strādājošs Python inferences serveris (nākotnes darbs).

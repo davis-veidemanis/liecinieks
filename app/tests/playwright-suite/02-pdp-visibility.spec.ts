@@ -1,9 +1,11 @@
+// Product detail page (PDP), click the first product card on the homepage
+// and check that all the PDP-specific regions are visible.
 
 import { test } from '@playwright/test';
 import { yoloAssertVisible } from './liecinieks-runtime';
 import { WEIGHTS, LABELS, IOU_THRESHOLD } from './liecinieks-config';
 
-test('PDP — signature regions visible after clicking a product', async ({ page }, testInfo) => {
+test('PDP, signature regions visible after clicking a product', async ({ page }, testInfo) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-test^="product-"][data-test*="01"]').first().waitFor({ state: 'visible' });
   await page.locator('[data-test^="product-"][data-test*="01"]').first().click();
@@ -33,6 +35,8 @@ test('PDP — signature regions visible after clicking a product', async ({ page
     });
   }
 
+  // The PDP should NOT show the homepage Sort/Filters or any cart elements,
+  // those are sidebar/checkout regions and aren't part of the PDP.
   const absent = ['Sort', 'Filters', 'cart_item', 'cart_total'];
   for (const label of absent) {
     await yoloAssertVisible(page, testInfo, {

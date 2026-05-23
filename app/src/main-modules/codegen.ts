@@ -5,6 +5,7 @@ import type { Scenario, Step } from '../types';
 const RUNTIME_FILE = 'liecinieks-runtime.ts';
 const INFERENCE_FILE = 'liecinieks-inference.py';
 
+// Render the scenario as a Playwright spec and write it (plus the runtime/inference shims) to disk.
 export async function exportPlaywright(
   scenario: Scenario,
   outputDir: string,
@@ -27,6 +28,7 @@ export async function exportPlaywright(
   return { specFile: specPath, runtimeFile: runtimePath, inferenceFile: inferencePath };
 }
 
+// Build the .spec.ts source string for a single scenario.
 function renderSpec(scenario: Scenario, weightsAbsPath: string, labelsAbsPath: string): string {
   const safeName = JSON.stringify(scenario.name);
   const stepsCode = scenario.steps.map(stepToCode).join('\n  ');
@@ -44,20 +46,32 @@ test.use({
 
 test(${safeName}, async ({ page }, testInfo) => {
   await page.goto(${JSON.stringify(scenario.startUrl)}, { waitUntil: 'domcontentloaded' });
+  // Wait for the SPA to finish hydrating before the first recorded step.
+  // 'domcontentloaded' fires before Angular/React components mount, so YOLO
+  // checks right after goto would see an empty page body. networkidle
+  // waits for ~500ms of no network traffic, which is a reliable signal
+  // that SPA bootstrap is done.
   await page.waitForLoadState('networkidle').catch(() => undefined);
   ${stepsCode}
 });
 `;
 }
 
+// Emit the Playwright code line(s) for a single recorded step.
 function stepToCode(step: Step): string {
   if (step.type === 'navigate') {
+    // After each recorded click, wait for the page to settle.
+    // 'networkidle' covers both navigations and XHR (e.g. login, add-to-cart),
+    // but with a cap — pages that poll constantly never hit full
+    // network-idle, so the .catch swallows the timeout and lets the test
+    // keep going.
     return `await page.locator(${JSON.stringify(step.selector)}).first().click();
   await page.waitForLoadState('networkidle', { timeout: 4000 }).catch(() => undefined);`;
   }
   if (step.type === 'type') {
     return `await page.locator(${JSON.stringify(step.selector)}).first().fill(${JSON.stringify(step.text)});`;
   }
+  // assert-visible
   return `await yoloAssertVisible(page, testInfo, {
     weights: WEIGHTS,
     labels: LABELS,
@@ -69,6 +83,7 @@ function stepToCode(step: Step): string {
   });`;
 }
 
+// Turn an arbitrary scenario name into something safe to use as a filename.
 function sanitize(name: string): string {
   return name
     .normalize('NFKD')
@@ -78,6 +93,7 @@ function sanitize(name: string): string {
     .slice(0, 80) || 'scenario_' + Date.now();
 }
 
+// The runtime helper file that the emitted spec imports at test time.
 function runtimeSource(): string {
   return `import { Page, TestInfo, expect } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
@@ -126,6 +142,8 @@ export async function yoloAssertVisible(
     return;
   }
 
+  // Attach the screenshot and detection JSON to the report so a failing
+  // check shows up in the HTML report with diagnostic data.
   await testInfo.attach(\`liecinieks-screenshot-\${seq}\`, { path: screenshot, contentType: 'image/png' });
   const detectionsPath = testInfo.outputPath(\`liecinieks-detections-\${seq}.json\`);
   await fs.promises.writeFile(detectionsPath, JSON.stringify({ opts, detections }, null, 2), 'utf-8');
@@ -185,18 +203,20 @@ function buildFailureMessage(
 `;
 }
 
+// The standalone Python script the runtime spawns to run YOLO inference.
 function inferenceSource(): string {
   return `#!/usr/bin/env python3
-"""Palaiž Ultralytics YOLO inferenci uz viena attēla un izvada detekcijas kā JSON.
+"""Runs Ultralytics YOLO inference on a single image and prints detections as JSON.
 
-Lietošana:
-    python liecinieks-inference.py --weights ceļš/uz/weights.pt --image ceļš/uz/screenshot.png
+Usage:
+    python liecinieks-inference.py --weights path/to/weights.pt --image path/to/screenshot.png
 
-Izvads: JSON masīvs ar {className, bbox: {x, y, w, h}, confidence}, rakstīts uz stdout.
+Output: JSON array of {className, bbox: {x, y, w, h}, confidence}, written to stdout.
 """
 import argparse
 import json
 import sys
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -236,6 +256,7 @@ def main() -> int:
 
     json.dump(detections, sys.stdout)
     return 0
+
 
 if __name__ == '__main__':
     sys.exit(main())

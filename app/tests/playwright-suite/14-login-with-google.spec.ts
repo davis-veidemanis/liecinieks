@@ -1,9 +1,11 @@
+// The login page has a "Continue with Google" button next to the
+// standard email/password form. The trained model has a separate label for it.
 
 import { test } from '@playwright/test';
 import { yoloAssertVisible } from './liecinieks-runtime';
 import { WEIGHTS, LABELS, IOU_THRESHOLD } from './liecinieks-config';
 
-test('login — Google sign-in button is detected', async ({ page }, testInfo) => {
+test('login, Google sign-in button is detected', async ({ page }, testInfo) => {
   await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-test="login-submit"]').waitFor({ state: 'visible' });
 

@@ -4,15 +4,19 @@ import type { ModelLabel, Scenario, Step, ViewportSize, BBox } from '../types';
 import { DEFAULT_IOU_THRESHOLD } from '../types';
 
 type AppState = {
+  // Model
   weightsPath: string | null;
   labelsCsvPath: string | null;
   labels: ModelLabel[];
+  // Active scenario
   scenario: Scenario | null;
+  // Recording state
   pageOpen: boolean;
   pageUrl: string;
   activeLabel: string | null;
   verifyLocation: boolean;
   negate: boolean;
+  // Toast/error message for the UI
   notice: string | null;
 
   setModel: (data: { weightsPath: string; labelsCsvPath: string; labels: ModelLabel[] }) => void;
@@ -27,6 +31,7 @@ type AppState = {
   setNotice: (msg: string | null) => void;
 };
 
+// Zustand hook holding model, scenario, recording, and toast state for the whole renderer.
 export const useStore = create<AppState>((set, get) => ({
   weightsPath: null,
   labelsCsvPath: null,
@@ -39,6 +44,7 @@ export const useStore = create<AppState>((set, get) => ({
   negate: false,
   notice: null,
 
+  // Store the picked weights/CSV paths and the parsed labels after the user loads a model.
   setModel: (data) =>
     set({
       weightsPath: data.weightsPath,
@@ -46,6 +52,7 @@ export const useStore = create<AppState>((set, get) => ({
       labels: data.labels,
     }),
 
+  // Begin a fresh scenario with an empty step list, seeded from the current label set.
   startScenario: ({ name, viewport, deviceScaleFactor, startUrl }) => {
     const labelNames = get().labels.map((l) => l.name);
     set({
@@ -64,23 +71,29 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
 
+  // Swap in a scenario loaded from disk and clear any active-label recording state.
   loadScenario: (scenario) => set({ scenario, activeLabel: null, verifyLocation: false, negate: false }),
 
+  // Track whether the headed target window is open and what URL it last navigated to.
   setPageOpen: (open, url) => set({ pageOpen: open, pageUrl: url ?? get().pageUrl }),
 
+  // Update which label the next click should be recorded against.
   setActiveLabel: (label, verifyLocation, negate) =>
     set({ activeLabel: label, verifyLocation, negate }),
 
+  // Append a step (click, type, or assertion) to the active scenario.
   appendStep: (step) => {
     const sc = get().scenario;
     if (!sc) return;
     set({ scenario: { ...sc, steps: [...sc.steps, step] } });
   },
+  // Drop a step from the scenario by id.
   removeStep: (id) => {
     const sc = get().scenario;
     if (!sc) return;
     set({ scenario: { ...sc, steps: sc.steps.filter((s) => s.id !== id) } });
   },
+  // Shift a step one slot up (direction -1) or down (direction +1) in the list.
   moveStep: (id, direction) => {
     const sc = get().scenario;
     if (!sc) return;
@@ -92,15 +105,18 @@ export const useStore = create<AppState>((set, get) => ({
     [next[idx], next[target]] = [next[target], next[idx]];
     set({ scenario: { ...sc, steps: next } });
   },
+  // Edit the text payload of a `type` step (e.g. when the user fixes a typed value).
   updateStepText: (id, text) => {
     const sc = get().scenario;
     if (!sc) return;
     const next = sc.steps.map((s) => (s.id === id && s.type === 'type' ? { ...s, text } : s));
     set({ scenario: { ...sc, steps: next } });
   },
+  // Set the transient toast/error message shown in the UI; pass null to clear it.
   setNotice: (msg) => set({ notice: msg }),
 }));
 
+// Convert a raw overlay event payload into the matching Step record.
 export function buildStepFromOverlayPayload(
   payload:
     | { kind: 'click'; selector: string; fallbackText: string; bbox: BBox; isInput: boolean }

@@ -19,11 +19,12 @@ let weightsPath: string | null = null;
 let labelsCsvPath: string | null = null;
 let currentLabels: string[] = [];
 
+// Create the main Electron window and wire up its lifecycle.
 const createWindow = (): void => {
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 760,
-    title: 'Liecinieks — Visual UI Testing',
+    title: 'Liecinieks, Visual UI Testing',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -73,11 +74,13 @@ app.on('before-quit', () => {
   void host?.close();
 });
 
+// Return the live main window or throw if it hasn't been created yet.
 function ensureMainWindow(): BrowserWindow {
   if (!mainWindow) throw new Error('Main window not initialised');
   return mainWindow;
 }
 
+// Register every IPC handler the renderer can call.
 function registerIpc(): void {
   ipcMain.handle(IPC.LOAD_MODEL, async () => {
     const win = ensureMainWindow();
@@ -136,7 +139,7 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.OPEN_TARGET, async (_e, payload: { url: string; viewport: ViewportSize; deviceScaleFactor: number }) => {
     if (host) {
-      try { await host.close(); } catch {  }
+      try { await host.close(); } catch { /* noop */ }
       host = null;
     }
     const win = ensureMainWindow();

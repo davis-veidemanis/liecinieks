@@ -1,3 +1,27 @@
+// This script gets injected into the target page via Playwright's addInitScript.
+// It captures clicks and forwards them to the Electron main process through
+// the `liecinieksHandle` binding, draws the cursor highlight, and renders
+// the right-click context menu (label picker) along with the text input
+// dialog.
+//
+// Interaction model:
+//   - Right-click            → opens the label picker; clicking a chip
+//                              sets the "active label" (sticks until the
+//                              session ends) and applies the sticky
+//                              verifyLocation / negate toggles.
+//   - Hold Shift             → a small tag near the cursor shows the active
+//                              label (or a hint to pick one), and the cursor
+//                              highlight switches to assert styling.
+//   - Shift + left-click     → records a visibility assertion for that
+//                              label and bbox, with a quick green flash.
+//                              Does NOT pass the click through to the page.
+//   - Plain left-click       → forwarded to the page as a normal interaction
+//                              (recorded as a click step; input fields still
+//                              pop up the text dialog).
+//
+// State (recording, labels, activeLabel, verifyLocation, negate) is pushed
+// from the main process via page.evaluate into `window.__liecinieksState`
+// so it survives page navigations.
 
 export const OVERLAY_SCRIPT = String.raw`
 (function () {
@@ -23,6 +47,7 @@ export const OVERLAY_SCRIPT = String.raw`
   const HIGHLIGHT_BORDER_ASSERT = '2px solid #06b6d4';
   const HIGHLIGHT_FILL_ASSERT = 'rgba(6, 182, 212, 0.18)';
 
+  // True when the element is in the layout tree and not hidden via CSS.
   function isVisible(el) {
     if (!el || el.nodeType !== 1) return false;
     const style = window.getComputedStyle(el);
@@ -30,10 +55,12 @@ export const OVERLAY_SCRIPT = String.raw`
     return true;
   }
 
+  // Escape double quotes so a value can be safely interpolated into an attribute selector.
   function escAttr(value) {
     return String(value).replace(/"/g, '\\"');
   }
 
+  // Pick the most stable selector available for a clicked element.
   function deriveSelector(el) {
     if (!el || el.nodeType !== 1) return { selector: 'body', fallback: '' };
     if (el.getAttribute('data-test')) {
@@ -43,9 +70,12 @@ export const OVERLAY_SCRIPT = String.raw`
       return { selector: '[data-testid="' + escAttr(el.getAttribute('data-testid')) + '"]', fallback: el.getAttribute('data-testid') };
     }
     if (el.id) {
+      // Use the attribute form; '#'+id breaks when the id has CSS special
+      // characters (':', '.', '/', spaces, etc. — common on Drupal/Angular/SPAs).
       return { selector: '[id="' + escAttr(el.id) + '"]', fallback: el.id };
     }
     const role = el.getAttribute('role');
+    // Collapse whitespace so a multi-line button ("Sign\\nIn") becomes "Sign In".
     const text = (el.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 40);
     if (role && text) {
       return {
@@ -56,6 +86,7 @@ export const OVERLAY_SCRIPT = String.raw`
     if (text && text.length < 50) {
       return { selector: 'text=' + JSON.stringify(text), fallback: text };
     }
+    // Fallback: tag + nth-of-type chain.
     const parts = [];
     let cur = el;
     while (cur && cur.nodeType === 1 && cur !== document.body) {
@@ -70,21 +101,29 @@ export const OVERLAY_SCRIPT = String.raw`
     return { selector: parts.join(' > ') || 'body', fallback: el.tagName.toLowerCase() };
   }
 
+  // Snapshot the element's viewport rect as integer x/y/w/h.
   function getBBox(el) {
     const r = el.getBoundingClientRect();
     return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
   }
 
+  // Is this element part of Liecinieks's own overlay UI (label menu, text
+  // dialog, cursor highlight, cursor tag)? The recording handlers need to
+  // ignore clicks/hovers on these so menu interactions don't get turned
+  // into test steps.
   function isInOurUi(el) {
     if (!el || typeof el.closest !== 'function') return false;
     return !!el.closest('#__liecinieks-menu, #__liecinieks-dialog, #__liecinieks-highlight, #__liecinieks-cursor-tag');
   }
 
+  // Is the label menu or text dialog currently visible? While either is
+  // open, the recorder pauses the cursor highlight and cursor tag rendering.
   function isUiOpen() {
     return !!document.getElementById('__liecinieks-menu') ||
            !!document.getElementById('__liecinieks-dialog');
   }
 
+  // True for editable input/textarea elements (skipping checkbox/file/etc).
   function isInputElement(el) {
     if (!el || el.nodeType !== 1) return false;
     const tag = el.tagName ? el.tagName.toLowerCase() : '';
@@ -97,6 +136,10 @@ export const OVERLAY_SCRIPT = String.raw`
     return false;
   }
 
+  // ---------- Shift tracking ----------
+  // Shift held = assert targeting mode. Track it with key events and use
+  // window-blur as a fallback (key-up can be missed if the OS steals focus
+  // while the key is still down).
   let shiftHeld = false;
   let lastMouseX = 0;
   let lastMouseY = 0;
@@ -121,8 +164,10 @@ export const OVERLAY_SCRIPT = String.raw`
     updateCursorTag();
   });
 
+  // ---------- Cursor highlight ----------
   let highlightEl = null;
   let highlightTarget = null;
+  // Lazily create the highlight rectangle and append it to the document.
   function ensureHighlight() {
     if (highlightEl && highlightEl.isConnected) return highlightEl;
     highlightEl = document.createElement('div');
@@ -138,6 +183,7 @@ export const OVERLAY_SCRIPT = String.raw`
     return highlightEl;
   }
 
+  // Swap between the green "navigate" and cyan "assert" highlight palettes.
   function applyHighlightStyle() {
     if (!highlightEl) return;
     if (shiftHeld) {
@@ -149,11 +195,13 @@ export const OVERLAY_SCRIPT = String.raw`
     }
   }
 
+  // Re-render the highlight with the latest style (e.g. after Shift state changes).
   function rePaintCurrentHighlight() {
     ensureHighlight();
     applyHighlightStyle();
   }
 
+  // Move and resize the highlight to wrap the given element, or hide it if it's not visible.
   function moveHighlight(el) {
     const node = ensureHighlight();
     if (!el || !isVisible(el) || el === document.body || el === document.documentElement) {
@@ -176,13 +224,16 @@ export const OVERLAY_SCRIPT = String.raw`
     node.style.display = 'block';
   }
 
+  // Make the highlight rectangle invisible and clear the tracked target.
   function hideHighlight() {
     const node = ensureHighlight();
     node.style.display = 'none';
     highlightTarget = null;
   }
 
+  // Hit-test the page at the cursor while temporarily hiding our overlay so it doesn't intercept the test.
   function elementUnderCursor(ev) {
+    // Briefly hide the highlight and tag so they don't interfere with the hit-test.
     const h = ensureHighlight();
     const prevH = h.style.display;
     h.style.display = 'none';
@@ -200,6 +251,8 @@ export const OVERLAY_SCRIPT = String.raw`
     lastMouseY = ev.clientY;
     updateCursorTag();
     if (!window.__liecinieksState.recording) return;
+    // While the label menu or text dialog is open, freeze cursor targeting
+    // across the page — the user's attention should be on the menu.
     if (isUiOpen()) {
       hideHighlight();
       return;
@@ -220,7 +273,9 @@ export const OVERLAY_SCRIPT = String.raw`
     hideHighlight();
   }, { capture: true });
 
+  // ---------- Cursor tag (shows the active label while Shift is held) ----------
   let tagEl = null;
+  // Lazily create the floating pill that trails the cursor.
   function ensureCursorTag() {
     if (tagEl && tagEl.isConnected) return tagEl;
     tagEl = document.createElement('div');
@@ -242,6 +297,7 @@ export const OVERLAY_SCRIPT = String.raw`
     return tagEl;
   }
 
+  // Refresh the cursor tag's text, colour, and position to match the current mode.
   function updateCursorTag() {
     const node = ensureCursorTag();
     if (!window.__liecinieksState.recording || isUiOpen()) {
@@ -275,6 +331,8 @@ export const OVERLAY_SCRIPT = String.raw`
         node.style.opacity = '1';
       }
     } else {
+      // Plain click mode — small, subtle "navigate" indicator so the user
+      // always knows which mode they're in.
       node.textContent = 'navigate';
       node.style.background = 'rgba(39, 39, 42, 0.85)';
       node.style.color = '#a1a1aa';
@@ -282,6 +340,8 @@ export const OVERLAY_SCRIPT = String.raw`
       node.style.fontSize = '11px';
       node.style.opacity = '0.85';
     }
+    // Offset a bit so the cursor doesn't sit on top of the tag.
+    // Flip to the left if it would otherwise run off-screen.
     const offsetX = 14;
     const offsetY = 16;
     let left = lastMouseX + offsetX;
@@ -299,11 +359,17 @@ export const OVERLAY_SCRIPT = String.raw`
     node.style.top = top + 'px';
   }
 
+  // Hide the floating cursor tag.
   function hideCursorTag() {
     const node = ensureCursorTag();
     node.style.display = 'none';
   }
 
+  // ---------- Flash feedback ----------
+  // Briefly shows a visible rectangle matching the target bbox. It pops in
+  // and fades out over ~200ms, then removes itself. Used to confirm a
+  // Shift+click assertion firing (green) or a rejection when no label is
+  // set (amber).
   function spawnFlash(bbox, borderColor, fillColor) {
     if (!bbox || bbox.w < 2 || bbox.h < 2) return;
     const flash = document.createElement('div');
@@ -323,6 +389,7 @@ export const OVERLAY_SCRIPT = String.raw`
     flash.style.opacity = '1';
     flash.style.transition = 'opacity 180ms ease-out, transform 180ms ease-out';
     document.documentElement.appendChild(flash);
+    // Double rAF so the transition kicks in after the first paint.
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         flash.style.opacity = '0';
@@ -332,14 +399,18 @@ export const OVERLAY_SCRIPT = String.raw`
     setTimeout(function () { if (flash.parentNode) flash.parentNode.removeChild(flash); }, 220);
   }
 
+  // Green flash signaling an accepted Shift+click assertion.
   function flashSuccess(bbox) {
     spawnFlash(bbox, '#4ade80', 'rgba(74, 222, 128, 0.35)');
   }
 
+  // Amber flash signaling a rejected Shift+click (e.g. no active label set).
   function flashRejection(bbox) {
     spawnFlash(bbox, '#fbbf24', 'rgba(251, 191, 36, 0.4)');
   }
 
+  // ---------- Text input dialog ----------
+  // Prompt the user for text via an in-page modal, resolving with the value or null on cancel.
   function showInputDialog(title, defaultValue) {
     return new Promise(function (resolve) {
       const old = document.getElementById(DIALOG_ID);
@@ -365,6 +436,7 @@ export const OVERLAY_SCRIPT = String.raw`
       const input = document.getElementById('__liecinieks-dialog-input');
       input.focus();
       input.select();
+      // Tear down the dialog and resolve the outer promise with the chosen value.
       function done(value) {
         wrap.remove();
         resolve(value);
@@ -378,6 +450,11 @@ export const OVERLAY_SCRIPT = String.raw`
     });
   }
 
+  // ---------- Label picker ----------
+  // Right-click opens this. The picker is a sticky-preference UI: clicking
+  // a chip sets the active label (plus the verifyLocation/negate toggles)
+  // and closes the picker. Subsequent Shift+clicks apply assertions with
+  // those settings until the user opens the picker again.
   function showLabelMenu() {
     return new Promise(function (resolve) {
       const old = document.getElementById(MENU_ID);
@@ -388,6 +465,8 @@ export const OVERLAY_SCRIPT = String.raw`
       const initialVerify = !!state.verifyLocation;
       const initialNegate = !!state.negate;
 
+      // Container that covers the whole viewport so we can place a backdrop
+      // behind the sidebar.
       const wrap = document.createElement('div');
       wrap.id = MENU_ID;
       wrap.style.position = 'fixed';
@@ -404,6 +483,9 @@ export const OVERLAY_SCRIPT = String.raw`
       backdrop.style.pointerEvents = 'auto';
       wrap.appendChild(backdrop);
 
+      // Right-side bar that sizes to its content so the toggles row is
+      // always visible even when Playwright's CDP viewport misreports
+      // innerHeight.
       const bar = document.createElement('div');
       bar.style.position = 'fixed';
       bar.style.top = '0';
@@ -436,6 +518,7 @@ export const OVERLAY_SCRIPT = String.raw`
         backdrop.style.opacity = '1';
       });
 
+      // Header: title + active label display + close button.
       const hdr = document.createElement('div');
       hdr.style.display = 'flex';
       hdr.style.alignItems = 'center';
@@ -469,6 +552,7 @@ export const OVERLAY_SCRIPT = String.raw`
       hdr.appendChild(closeBtn);
       bar.appendChild(hdr);
 
+      // Small row showing the currently active label.
       const activeRow = document.createElement('div');
       activeRow.style.display = 'flex';
       activeRow.style.alignItems = 'center';
@@ -491,7 +575,7 @@ export const OVERLAY_SCRIPT = String.raw`
         activeChip.style.background = 'rgba(6, 182, 212, 0.16)';
         activeChip.style.color = '#a3adff';
       } else {
-        activeChip.textContent = 'none — pick one below';
+        activeChip.textContent = 'none, pick one below';
         activeChip.style.color = '#71717a';
       }
       activeRow.appendChild(activeChip);
@@ -509,6 +593,8 @@ export const OVERLAY_SCRIPT = String.raw`
       }
       bar.appendChild(activeRow);
 
+      // Row of sticky toggles — they persist across picker openings and
+      // apply to every subsequent Shift+click.
       const toggles = document.createElement('div');
       toggles.style.display = 'flex';
       toggles.style.alignItems = 'center';
@@ -552,6 +638,7 @@ export const OVERLAY_SCRIPT = String.raw`
 
       bar.appendChild(toggles);
 
+      // Search row.
       const search = document.createElement('input');
       search.type = 'search';
       search.placeholder = 'Filter labels…';
@@ -581,6 +668,8 @@ export const OVERLAY_SCRIPT = String.raw`
         bar.appendChild(empty);
       }
 
+      // Chip grid — clicking a chip immediately sets the active label and
+      // closes the picker, applying the current toggle values.
       const chips = document.createElement('div');
       chips.style.display = 'flex';
       chips.style.flexWrap = 'wrap';
@@ -594,6 +683,7 @@ export const OVERLAY_SCRIPT = String.raw`
       chips.style.borderRadius = '6px';
       const chipEls = [];
 
+      // Toggle the chip background between active and inactive styling.
       function paintChip(chip, lbl, selected) {
         if (selected) {
           chip.style.background = '#06b6d4';
@@ -645,6 +735,9 @@ export const OVERLAY_SCRIPT = String.raw`
         });
       });
 
+      // Size the chip area so the bottom of the picker stays on-screen.
+      // Same CDP-viewport workaround: outerHeight is more reliable than
+      // innerHeight in a Playwright context.
       function syncBarLayout() {
         const inner = window.innerHeight || 720;
         const outer = window.outerHeight || 0;
@@ -663,6 +756,7 @@ export const OVERLAY_SCRIPT = String.raw`
         bar.style.right = rightOffset + 'px';
       }
       syncBarLayout();
+      // Re-run the sidebar sizing logic when the window dimensions change.
       function onWindowResize() { syncBarLayout(); }
       window.addEventListener('resize', onWindowResize);
 
@@ -673,12 +767,14 @@ export const OVERLAY_SCRIPT = String.raw`
       });
       setTimeout(function () { search.focus(); }, 0);
 
+      // Tear down the picker, unhook listeners, and resolve the outer promise.
       function close(payload) {
         wrap.remove();
         document.removeEventListener('keydown', onKey, true);
         window.removeEventListener('resize', onWindowResize);
         resolve(payload);
       }
+      // Escape key closes the picker without choosing anything.
       function onKey(ev) {
         if (ev.key === 'Escape') close(null);
       }
@@ -691,8 +787,10 @@ export const OVERLAY_SCRIPT = String.raw`
     });
   }
 
+  // ---------- Click + right-click handlers ----------
   async function handleLeftClick(ev) {
     if (!window.__liecinieksState.recording) return;
+    // If the label menu is open, treat clicks outside it as "close".
     const openMenu = document.getElementById('__liecinieks-menu');
     if (openMenu && !openMenu.contains(ev.target)) {
       ev.preventDefault();
@@ -706,6 +804,7 @@ export const OVERLAY_SCRIPT = String.raw`
     if (!target || isInOurUi(target)) return;
     const bbox = getBBox(target);
 
+    // Shift + click → assertion. Block it so the page doesn't get the click.
     if (ev.shiftKey) {
       ev.preventDefault();
       ev.stopPropagation();
@@ -722,11 +821,16 @@ export const OVERLAY_SCRIPT = String.raw`
         negate: !!st.negate,
         bbox: bbox,
       });
+      // Wipe any selection the browser started before our mousedown
+      // preventDefault kicked in (e.g. the first Shift+click after a
+      // page load, before the listener was attached).
       const sel = window.getSelection && window.getSelection();
       if (sel && sel.removeAllRanges) sel.removeAllRanges();
       return;
     }
 
+    // Plain click — record as a step, pass it through to the page, and
+    // for input fields ask what text to type.
     const sel = deriveSelector(target);
     const isInput = isInputElement(target);
     window.liecinieksHandle({
@@ -749,6 +853,7 @@ export const OVERLAY_SCRIPT = String.raw`
     }
   }
 
+  // Right-click opens the label picker, then forwards the chosen settings to the host.
   async function handleRightClick(ev) {
     if (!window.__liecinieksState.recording) return;
     if (isInOurUi(ev.target)) return;
@@ -765,6 +870,10 @@ export const OVERLAY_SCRIPT = String.raw`
     }
   }
 
+  // Suppress the browser's native Shift+click text selection. Selection
+  // starts on mousedown (before our click handler runs), so we need
+  // preventDefault here. Skip our own overlay UI so menu/dialog
+  // interactions still work normally.
   document.addEventListener('mousedown', function (ev) {
     if (!ev.shiftKey || ev.button !== 0) return;
     if (!window.__liecinieksState.recording) return;
@@ -772,6 +881,8 @@ export const OVERLAY_SCRIPT = String.raw`
     ev.preventDefault();
   }, { capture: true });
 
+  // Same idea for the selectstart event — some browsers fire it independently
+  // of mousedown's default action, so this is the extra safety net.
   document.addEventListener('selectstart', function (ev) {
     if (!shiftHeld) return;
     if (!window.__liecinieksState.recording) return;
@@ -782,6 +893,9 @@ export const OVERLAY_SCRIPT = String.raw`
   document.addEventListener('click', handleLeftClick, { capture: true });
   document.addEventListener('contextmenu', handleRightClick, { capture: true });
 
+  // Exposed so the main process can call it from page.evaluate after
+  // pushing a new __liecinieksState. Repaints the cursor tag so the
+  // active label / toggles immediately reflect the latest state.
   window.__liecinieksRender = function () {
     rePaintCurrentHighlight();
     updateCursorTag();

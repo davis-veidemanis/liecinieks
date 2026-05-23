@@ -1,6 +1,7 @@
 import type { Step } from '../types';
 import { useStore } from './store';
 
+// Renders the recorded steps with reorder/edit/delete controls.
 export function StepList() {
   const scenario = useStore((s) => s.scenario);
   const removeStep = useStore((s) => s.removeStep);
@@ -58,12 +59,14 @@ export function StepList() {
   );
 }
 
+// Map a step to its CSS class for coloring in the list.
 function classFor(step: Step): string {
   if (step.type === 'navigate') return 't-navigate';
   if (step.type === 'type') return 't-type';
   return step.negate ? 't-assert-not' : 't-assert';
 }
 
+// Human-readable tag shown next to each step row.
 function tagLabel(step: Step): string {
   if (step.type === 'navigate') return 'Navigate';
   if (step.type === 'type') return 'Type';
@@ -71,10 +74,11 @@ function tagLabel(step: Step): string {
   return 'Visible';
 }
 
+// One-line description of a step (selector for clicks, text for typing, etc.).
 function describeStep(step: Step): string {
   if (step.type === 'navigate') {
     const sel = truncate(step.selector, 64);
-    return step.fallbackText ? `${sel} — "${truncate(step.fallbackText, 36)}"` : sel;
+    return step.fallbackText ? `${sel}, "${truncate(step.fallbackText, 36)}"` : sel;
   }
   if (step.type === 'type') {
     return `${truncate(step.selector, 44)} ← ${JSON.stringify(step.text)}`;
@@ -84,6 +88,7 @@ function describeStep(step: Step): string {
     : 'Anywhere on screen';
 }
 
+// Trim a string to n characters, appending an ellipsis when shortened.
 function truncate(s: string, n: number): string {
   if (s.length <= n) return s;
   return s.slice(0, n - 1) + '…';

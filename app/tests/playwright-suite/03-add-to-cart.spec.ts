@@ -1,9 +1,12 @@
+// Add-to-cart flow, open a product, hit Add to cart, check the confirmation
+// toast shows up, then head to the cart page and check that the line item,
+// total, and main buttons are detected.
 
 import { test } from '@playwright/test';
 import { yoloAssertVisible } from './liecinieks-runtime';
 import { WEIGHTS, LABELS, IOU_THRESHOLD } from './liecinieks-config';
 
-test('add to cart — confirmation toast + populated cart page', async ({ page }, testInfo) => {
+test('add to cart, confirmation toast + populated cart page', async ({ page }, testInfo) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-test^="product-"][data-test*="01"]').first().waitFor({ state: 'visible' });
   await page.locator('[data-test^="product-"][data-test*="01"]').first().click();
@@ -11,6 +14,7 @@ test('add to cart — confirmation toast + populated cart page', async ({ page }
   await page.locator('[data-test="add-to-cart"]').waitFor({ state: 'visible' });
   await page.locator('[data-test="add-to-cart"]').click();
 
+  // Wait for the cart badge to tick up, then go to the cart page.
   await page.locator('[data-test="cart-quantity"]').waitFor({ state: 'visible' });
   await page.locator('[data-test="nav-cart"]').click();
   await page.locator('[data-test="proceed-1"]').waitFor({ state: 'visible' });

@@ -20,8 +20,11 @@ const config: ForgeConfig = {
   ],
   plugins: [
     new VitePlugin({
+      // `build` can take multiple entry points — the main process, preload scripts, a worker process, etc.
+      // If you know Vite's config, this will look familiar.
       build: [
         {
+          // `entry` is just an alias for the `build.lib.entry` field in the matching `config` file.
           entry: 'src/main.ts',
           config: 'vite.main.config.ts',
           target: 'main',
@@ -39,6 +42,8 @@ const config: ForgeConfig = {
         },
       ],
     }),
+    // Fuses are used to toggle various Electron features on or off at
+    // packaging time, before the app code is signed.
     new FusesPlugin({
       version: FuseVersion.V1,
       [FuseV1Options.RunAsNode]: false,

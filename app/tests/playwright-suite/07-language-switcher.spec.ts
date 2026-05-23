@@ -1,12 +1,16 @@
+// Language switcher, clicking the locale toggle opens an expanded dropdown,
+// which is a separately labeled region in the trained model.
 
 import { test } from '@playwright/test';
 import { yoloAssertVisible } from './liecinieks-runtime';
 import { WEIGHTS, LABELS, IOU_THRESHOLD } from './liecinieks-config';
 
-test('language switcher — dropdown expands on click', async ({ page }, testInfo) => {
+test('language switcher, dropdown expands on click', async ({ page }, testInfo) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-test="language-select"]').waitFor({ state: 'visible' });
 
+  // Before the click: the language toggle is part of the nav, but the
+  // expanded panel isn't rendered yet.
   await yoloAssertVisible(page, testInfo, {
     weights: WEIGHTS,
     labels: LABELS,
@@ -26,6 +30,7 @@ test('language switcher — dropdown expands on click', async ({ page }, testInf
     negate: true,
   });
 
+  // Click to expand.
   await page.locator('[data-test="language-select"]').click();
   await page.locator('[data-test="lang-en"]').waitFor({ state: 'visible' });
 
