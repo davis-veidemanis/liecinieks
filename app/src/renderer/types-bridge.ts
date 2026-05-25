@@ -1,3 +1,8 @@
+// Typed view of the `window.liecinieks` object that preload.ts exposes via
+// contextBridge. Importing from here gives the renderer code autocomplete
+// and type-checking for every IPC method without each component having to
+// redeclare the shape.
+
 import type { ModelLabel, Scenario, ViewportSize } from '../types';
 
 type Liecinieks = {

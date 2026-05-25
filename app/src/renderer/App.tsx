@@ -1,3 +1,7 @@
+// Root component for the Liecinieks renderer. Owns the top-level setup vs
+// recorder routing, persists the user's theme preference, and subscribes to
+// the main-process events that flow in from PlaywrightHost.
+
 import { useEffect, useState } from 'react';
 import { SetupScreen } from './SetupScreen';
 import { RecorderScreen } from './RecorderScreen';

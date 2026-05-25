@@ -1,3 +1,8 @@
+// Electron main process entry point. Owns the lifecycle of the Liecinieks
+// window, the headed Playwright host that drives the target browser, and the
+// disk-backed scenario store. All renderer requests come in over IPC and are
+// dispatched by registerIpc().
+
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
@@ -8,6 +13,7 @@ import { readLabelsCsv } from './main-modules/labels';
 import { IPC } from './ipc-channels';
 import type { Scenario, ViewportSize } from './types';
 
+// Quit immediately on Windows when launched by Squirrel during install/uninstall.
 if (started) {
   app.quit();
 }
@@ -138,6 +144,8 @@ function registerIpc(): void {
   });
 
   ipcMain.handle(IPC.OPEN_TARGET, async (_e, payload: { url: string; viewport: ViewportSize; deviceScaleFactor: number }) => {
+    // Re-opening replaces any previous target browser, so the user can switch
+    // viewport or URL without restarting the app.
     if (host) {
       try { await host.close(); } catch { /* noop */ }
       host = null;

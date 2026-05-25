@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Python venv
+.venv/
+
+# Node
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Env
+.env
+.env.test
+
+# Caches
+.npm
+.eslintcache
+
+# Vite
+.vite/
+
+# Electron-Forge build output
+out/
+
+# Playwright artifacts
+**/playwright-report/
+**/test-results/
+**/.last-run.json
+tests/playwright-suite-generated/

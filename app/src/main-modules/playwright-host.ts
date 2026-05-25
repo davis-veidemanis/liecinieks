@@ -1,3 +1,8 @@
+// Wraps a Playwright Chromium instance that the Liecinieks app uses to
+// record user actions on a target page. The main process owns a single host
+// at a time, opens a new headed browser per scenario, and forwards every
+// overlay event back to the renderer over IPC.
+
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import { screen, type BrowserWindow } from 'electron';
 import { OVERLAY_SCRIPT } from './overlay';

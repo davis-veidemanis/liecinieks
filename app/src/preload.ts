@@ -1,3 +1,8 @@
+// Electron preload script. Runs in an isolated context with access to Node
+// and the ipcRenderer, and exposes a narrow surface to the renderer via
+// contextBridge. The renderer cannot touch ipcRenderer directly because of
+// contextIsolation; every call has to go through one of the methods below.
+
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { IPC } from './ipc-channels';
 import type { ModelLabel, Scenario, ViewportSize } from './types';

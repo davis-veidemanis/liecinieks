@@ -788,6 +788,11 @@ export const OVERLAY_SCRIPT = String.raw`
   }
 
   // ---------- Click + right-click handlers ----------
+  // handleLeftClick is the workhorse: it has to distinguish four cases
+  // (menu-dismiss, ignore, Shift+click assertion, plain navigate) and never
+  // double-handle a click. Capture-phase listening combined with elementUnderCursor
+  // ensures we read the page's real target even when our highlight overlay
+  // is in front of the cursor.
   async function handleLeftClick(ev) {
     if (!window.__liecinieksState.recording) return;
     // If the label menu is open, treat clicks outside it as "close".

@@ -32,6 +32,8 @@ export async function yoloAssertVisible(
   testInfo: TestInfo,
   opts: AssertionOptions,
 ): Promise<void> {
+  // Sequence number per test so multiple assertions in the same spec each
+  // get their own screenshot and annotated-view filenames.
   const seq =
     testInfo.attachments.filter((a) => a.name.startsWith('liecinieks-yolo-view')).length + 1;
   const screenshot = testInfo.outputPath(`liecinieks-screenshot-${seq}.png`);
